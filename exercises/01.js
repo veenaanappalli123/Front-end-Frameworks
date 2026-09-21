@@ -2,14 +2,14 @@
 // ### Exercise 1 — `const` and `let`
 // Identify which variables should be `const` and which should be `let`. Rewrite the block.
 
-var movieTitle = "Inception";
-var releaseYear = 2010;
-var isWatched = false;
-var rating = 8.8;
+const releaseYear = 2010;
+let movieTitle = "Inception";
+let isWatched = false;
+let rating = 8.8;
 
 // Later in the code:
 isWatched = true;
 rating = 8.8 + 0.2;
-movieTitle = "Interstellar"; // should this be allowed?
+movieTitle = "Interstellar";
 
 console.log(movieTitle, releaseYear, isWatched, rating);
