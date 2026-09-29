@@ -1,33 +1,20 @@
-import { useState } from "react";
-import MovieList from "./components/MovieList";
-import SearchBar from "./components/SearchBar";
-import { SAMPLE_MOVIES } from "./data/sampleMovies";
+import { BrowserRouter, Route, Routes } from "react-router-dom";
+import Header from "./components/Header";
+import AboutPage from "./pages/AboutPage";
+import HomePage from "./pages/HomePage";
+import NotFoundPage from "./pages/NotFoundPage";
 
 function App() {
-  const [movies] = useState(SAMPLE_MOVIES);
-  const [query, setQuery] = useState("");
-  const [minRating] = useState(0);
-
-  const filteredMovies = movies.filter((movie) => {
-    const matchesQuery = movie.title
-      .toLowerCase()
-      .includes(query.toLowerCase());
-
-    const matchesRating = movie.vote_average >= minRating;
-
-    return matchesQuery && matchesRating;
-  });
-
   return (
-    <div className="app-layout">
-      <main className="main-container">
-        <h1>Movie App</h1>
+    <BrowserRouter>
+      <Header />
 
-        <SearchBar query={query} onChange={setQuery} />
-
-        <MovieList movies={filteredMovies} />
-      </main>
-    </div>
+      <Routes>
+        <Route path="/" element={<HomePage />} />
+        <Route path="/about" element={<AboutPage />} />
+        <Route path="*" element={<NotFoundPage />} />
+      </Routes>
+    </BrowserRouter>
   );
 }
 
