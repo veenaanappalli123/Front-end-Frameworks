@@ -1,62 +1,149 @@
-import { useEffect, useState } from "react";
-import MovieList from "../components/MovieList";
-import SearchBar from "../components/SearchBar";
-import type { Movie } from "../types";
+import { useEffect, useMemo, useState } from "react";
 
-function HomePage() {
+import MovieList from "../components/MovieList";
+import MovieModal from "../components/MovieModal";
+import FilterBar from "../components/FilterBar";
+import StatsBanner from "../components/StatsBanner";
+
+import { getMovies, sortMovies } from "../services/movieApi";
+import { GENRES } from "../data/genres";
+import { storage } from "../utils/storage";
+
+import type { Movie, SortOption, ViewMode } from "../types";
+
+type HomePageProps = {
+  search?: string;
+  onlyFavorites?: boolean;
+  refreshKey?: number;
+};
+
+function HomePage({
+  search = "",
+  onlyFavorites = false,
+  refreshKey = 0,
+}: HomePageProps) {
+  const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
   const [movies, setMovies] = useState<Movie[]>([]);
-  const [query, setQuery] = useState("");
-  const [minRating] = useState(0);
+  const [selectedGenre, setSelectedGenre] = useState<number | null>(null);
+  const [sort, setSort] = useState<SortOption>("popularity");
+  const [view, setView] = useState<ViewMode>("grid");
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchMovies = async () => {
+    let cancelled = false;
+
+    async function fetchMovies() {
       try {
         setLoading(true);
-        setError("");
+        setError(null);
 
-        const response = await fetch("/api/movies");
+        const data = await getMovies({
+          search,
+          genre: selectedGenre,
+          onlyFavorites,
+        });
 
-        if (!response.ok) {
-          throw new Error("Failed to fetch movies");
+        if (!cancelled) {
+          setMovies(data);
         }
-
-        const data = await response.json();
-
-        setMovies(data.results ?? []);
-      } catch {
-        setMovies([]);
-        setError("Failed to load movies.");
+      } catch (err) {
+        if (!cancelled) {
+          setError(
+            err instanceof Error
+              ? err.message
+              : "Something went wrong while loading movies."
+          );
+        }
       } finally {
-        setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
-    };
+    }
 
     fetchMovies();
-  }, []);
 
-  const filteredMovies = movies.filter((movie) => {
-    const matchesQuery = movie.title
-      .toLowerCase()
-      .includes(query.toLowerCase());
+    return () => {
+      cancelled = true;
+    };
+  }, [search, selectedGenre, onlyFavorites, refreshKey]);
 
-    const matchesRating = movie.vote_average >= minRating;
+  const sortedMovies = useMemo(
+    () => sortMovies(movies, sort),
+    [movies, sort]
+  );
 
-    return matchesQuery && matchesRating;
-  });
+  const activeGenre =
+    selectedGenre === null
+      ? "All"
+      : GENRES[selectedGenre] ?? "Other";
+
+  const isLive = Boolean(storage.getApiKey());
 
   return (
     <main className="main-container">
-      <h1>Movie App</h1>
+      <div className="page-heading">
+        <h1>Discover Movies</h1>
+        <p>Explore popular movies and find your next favourite.</p>
+      </div>
 
-      <SearchBar query={query} onChange={setQuery} />
+      <StatsBanner
+        movies={sortedMovies}
+        activeGenre={activeGenre}
+        isLive={isLive}
+      />
+
+      <FilterBar
+        selectedGenre={selectedGenre}
+        onGenreChange={setSelectedGenre}
+        sort={sort}
+        onSortChange={setSort}
+        view={view}
+        onViewChange={setView}
+      />
 
       {loading && <p>Loading movies...</p>}
 
-      {!loading && error && <p>{error}</p>}
+      {error && (
+        <p role="alert">
+          Error: {error}
+        </p>
+      )}
 
-      {!loading && !error && <MovieList movies={filteredMovies} />}
+      {!loading && !error && sortedMovies.length === 0 && (
+        <div className="empty-state">
+          <h2>No movies found</h2>
+          <p>Try another search or select a different genre.</p>
+
+          <button
+            type="button"
+            className="btn-primary"
+            onClick={() => {
+              setSelectedGenre(null);
+              setSort("popularity");
+            }}
+          >
+            Reset Filters
+          </button>
+        </div>
+      )}
+
+      {!loading && !error && sortedMovies.length > 0 && (
+        <div className={view === "grid" ? "movies-grid" : "movies-grid compact-view"}>
+          <MovieList
+            movies={sortedMovies}
+            onMovieClick={setSelectedMovie}
+          />
+        </div>
+      )}
+
+      {selectedMovie && (
+        <MovieModal
+          movie={selectedMovie}
+          onClose={() => setSelectedMovie(null)}
+        />
+      )}
     </main>
   );
 }
